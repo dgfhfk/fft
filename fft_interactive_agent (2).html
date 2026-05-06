@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FFT算法原理交互式智能体</title>
+<style>
+  :root{
+    --bg:#f6f7fb;
+    --panel:#ffffff;
+    --ink:#172033;
+    --muted:#687386;
+    --line:#d9deea;
+    --accent:#315efb;
+    --accent2:#0f9f7a;
+    --warn:#c77c00;
+    --danger:#bf2f2f;
+    --soft:#eef2ff;
+    --soft2:#ecfdf6;
+    --shadow:0 8px 24px rgba(20,31,55,.08);
+    --radius:18px;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family:Arial, "Microsoft YaHei", sans-serif;
+    background:linear-gradient(180deg,#f8faff 0%,#f3f5fa 100%);
+    color:var(--ink);
+  }
+  header{
+    padding:22px 28px 12px;
+    border-bottom:1px solid var(--line);
+    background:#fff;
+    position:sticky;
+    top:0;
+    z-index:10;
+  }
+  h1{font-size:24px;margin:0 0 8px}
+  .subtitle{color:var(--muted);font-size:14px;line-height:1.55}
+  main{
+    display:grid;
+    grid-template-columns: 360px 1fr;
+    gap:18px;
+    padding:18px;
+    max-width:1420px;
+    margin:0 auto;
+  }
+  .card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+  }
+  .agent{
+    height:calc(100vh - 120px);
+    min-height:720px;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+    position:sticky;
+    top:96px;
+  }
+  .agentTop{
+    padding:16px;
+    border-bottom:1px solid var(--line);
+  }
+  .agentName{font-weight:700;font-size:18px}
+  .agentDesc{font-size:13px;color:var(--muted);margin-top:6px;line-height:1.5}
+  .chat{
+    flex:1;
+    overflow:auto;
+    padding:14px;
+    background:linear-gradient(180deg,#fbfcff,#ffffff);
+  }
+  .msg{
+    margin:10px 0;
+    max-width:96%;
+    padding:10px 12px;
+    border-radius:14px;
+    font-size:14px;
+    line-height:1.55;
+    white-space:pre-wrap;
+  }
+  .bot{background:#eef2ff;border:1px solid #dfe6ff}
+  .user{background:#ecfdf6;border:1px solid #cdeedd;margin-left:auto}
+  .quick{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    padding:12px 14px;
+    border-top:1px solid var(--line);
+    background:#fff;
+  }
+  button, select, input, textarea{
+    font-family:inherit;
+  }
+  button{
+    border:1px solid var(--line);
+    background:#fff;
+    color:var(--ink);
+    border-radius:999px;
+    padding:8px 12px;
+    cursor:pointer;
+    transition:.15s;
+    font-size:13px;
+  }
+  button:hover{transform:translateY(-1px);box-shadow:0 5px 12px rgba(20,31,55,.08)}
+  button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  button.green{background:var(--accent2);color:#fff;border-color:var(--accent2)}
+  button.warn{background:#fff8e8;border-color:#f0d08a;color:#8a5a00}
+  .inputBox{
+    display:flex;
+    gap:8px;
+    padding:12px;
+    border-top:1px solid var(--line);
+  }
+  .inputBox input{
+    flex:1;
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:10px;
+    outline:none;
+  }
+  .right{
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+  }
+  .tabs{
+    display:flex;
+    gap:8px;
+    padding:12px;
+    background:#fff;
+    border-radius:var(--radius);
+    border:1px solid var(--line);
+    box-shadow:var(--shadow);
+    position:sticky;
+    top:96px;
+    z-index:8;
+    overflow:auto;
+  }
+  .tab.active{background:var(--accent);border-color:var(--accent);color:white}
+  .section{
+    padding:18px;
+  }
+  .section h2{font-size:20px;margin:0 0 12px}
+  .grid2{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:16px;
+  }
+  .grid3{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:12px;
+  }
+  .mini{
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:14px;
+    background:#fff;
+  }
+  .mini h3{margin:0 0 8px;font-size:16px}
+  .muted{color:var(--muted)}
+  .formula{
+    background:#f8fafc;
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:12px;
+    font-family:"Times New Roman", serif;
+    font-size:18px;
+    overflow:auto;
+  }
+  .controlBar{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    align-items:center;
+    margin:12px 0;
+    padding:12px;
+    background:#f8fafc;
+    border:1px solid var(--line);
+    border-radius:14px;
+  }
+  label{font-size:13px;color:var(--muted)}
+  select, input[type="number"], textarea{
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:9px 10px;
+    background:#fff;
+    outline:none;
+  }
+  textarea{
+    width:100%;
+    min-height:58px;
+    resize:vertical;
+    font-size:13px;
+  }
+  .svgBox{
+    width:100%;
+    overflow:auto;
+    border:1px solid var(--line);
+    border-radius:16px;
+    background:#fff;
+    padding:10px;
+  }
+  svg text{font-family:Arial, "Microsoft YaHei", sans-serif}
+  .note{
+    background:#fff8e8;
+    border:1px solid #f0d08a;
+    border-radius:14px;
+    padding:12px;
+    color:#6f4a00;
+    font-size:14px;
+    line-height:1.6;
+  }
+  .oknote{
+    background:#ecfdf6;
+    border:1px solid #cdeedd;
+    border-radius:14px;
+    padding:12px;
+    color:#075d46;
+    font-size:14px;
+    line-height:1.6;
+  }
+  table{
+    width:100%;
+    border-collapse:collapse;
+    background:#fff;
+    border-radius:14px;
+    overflow:hidden;
+  }
+  th,td{
+    border:1px solid var(--line);
+    padding:9px;
+    text-align:center;
+    font-size:13px;
+  }
+  th{background:#f2f5ff}
+  .pill{
+    display:inline-block;
+    padding:4px 8px;
+    border-radius:999px;
+    background:#eef2ff;
+    color:#2447c6;
+    font-size:12px;
+    margin:2px;
+  }
+  .quizOption{
+    display:block;
+    width:100%;
+    text-align:left;
+    border-radius:14px;
+    margin:8px 0;
+    padding:10px 12px;
+  }
+  .quizOption.right{border-color:#80d6b8;background:#ecfdf6}
+  .quizOption.wrong{border-color:#f0a6a6;background:#fff1f1}
+  .hidden{display:none}
+  .progress{
+    height:10px;
+    background:#eef1f6;
+    border-radius:999px;
+    overflow:hidden;
+  }
+  .bar{
+    height:100%;
+    width:0%;
+    background:linear-gradient(90deg,var(--accent),var(--accent2));
+  }
+  @media(max-width:1050px){
+    main{grid-template-columns:1fr}
+    .agent{position:relative;top:0;height:600px;min-height:600px}
+    .tabs{top:0}
+    .grid2,.grid3{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>FFT算法原理交互式智能体</h1>
+  <div class="subtitle">围绕“直接DFT为什么慢、FFT如何通过奇偶分解和蝶形运算减少计算量”组织学习、演示、练习与自测。</div>
+</header>
+
+<main>
+  <aside class="card agent">
+    <div class="agentTop">
+      <div class="agentName">FFT 学习助手</div>
+      <div class="agentDesc">输入问题，或点击快捷任务。智能体会引导你完成概念理解、动画观察、手算验证和课堂小测。</div>
+    </div>
+    <div id="chat" class="chat"></div>
+    <div class="quick">
+      <button onclick="askQuick('为什么FFT比DFT快？')">为什么FFT快</button>
+      <button onclick="askQuick('讲解DIT-FFT')">DIT-FFT</button>
+      <button onclick="askQuick('什么是蝶形运算？')">蝶形运算</button>
+      <button onclick="askQuick('旋转因子有什么性质？')">旋转因子</button>
+      <button onclick="askQuick('开始课堂小测')">开始小测</button>
+    </div>
+    <div class="inputBox">
+      <input id="chatInput" placeholder="例如：N=8怎么分解？" onkeydown="if(event.key==='Enter')sendChat()" />
+      <button class="primary" onclick="sendChat()">发送</button>
+    </div>
+  </aside>
+
+  <section class="right">
+    <nav class="tabs">
+      <button class="tab active" onclick="showSec('goal',this)">学习目标</button>
+      <button class="tab" onclick="showSec('twiddle',this)">旋转因子</button>
+      <button class="tab" onclick="showSec('decompose',this)">奇偶分解</button>
+      <button class="tab" onclick="showSec('flow',this)">蝶形流图</button>
+      <button class="tab" onclick="showSec('complexity',this)">复杂度对比</button>
+      <button class="tab" onclick="showSec('quiz',this)">课堂小测</button>
+    </nav>
+
+    <div id="goal" class="card section">
+      <h2>1. 学习目标与核心主线</h2>
+      <div class="grid3">
+        <div class="mini">
+          <h3>问题</h3>
+          <p class="muted">直接计算 N 点 DFT 需要大量复数乘法和加法，N 较大时难以实时处理。</p>
+          <div class="formula">X(k)=∑<sub>n=0</sub><sup>N-1</sup>x(n)W<sub>N</sub><sup>kn</sup></div>
+        </div>
+        <div class="mini">
+          <h3>方法</h3>
+          <p class="muted">基2时间抽取 FFT 将序列按偶数项、奇数项分解，把 N 点 DFT 转化为两个 N/2 点 DFT。</p>
+          <div><span class="pill">奇偶分解</span><span class="pill">旋转因子</span><span class="pill">蝶形运算</span></div>
+        </div>
+        <div class="mini">
+          <h3>结果</h3>
+          <p class="muted">计算量从 O(N²) 降为 O(N log₂N)，这是 FFT 能高效谱分析的根本原因。</p>
+          <div class="formula">FFT：约 (N/2)log₂N 次复乘</div>
+        </div>
+      </div>
+      <div class="note" style="margin-top:14px">
+        建议课堂使用顺序：先调节 N 观察复杂度增长，再看单位圆上的旋转因子，最后播放蝶形流图，完成小测。
+      </div>
+    </div>
+
+    <div id="twiddle" class="card section hidden">
+      <h2>2. 旋转因子 W<sub>N</sub><sup>k</sup> 的交互观察</h2>
+      <div class="controlBar">
+        <label>N：</label>
+        <select id="twN" onchange="drawTwiddle()">
+          <option>4</option><option selected>8</option><option>16</option><option>32</option>
+        </select>
+        <label>k：</label>
+        <input id="twK" type="range" min="0" max="7" value="1" oninput="drawTwiddle()" />
+        <span id="twInfo" class="pill"></span>
+      </div>
+      <div class="grid2">
+        <div class="svgBox"><svg id="twiddleSvg" width="520" height="420"></svg></div>
+        <div class="mini">
+          <h3>观察重点</h3>
+          <p>旋转因子定义：</p>
+          <div class="formula">W<sub>N</sub><sup>k</sup>=e<sup>-j2πk/N</sup></div>
+          <p class="muted">FFT 能减少运算量，是因为旋转因子具有可重复利用的结构。</p>
+          <ul class="muted">
+            <li>周期性：W<sub>N</sub><sup>k+N</sup>=W<sub>N</sub><sup>k</sup></li>
+            <li>对称性：W<sub>N</sub><sup>k+N/2</sup>=-W<sub>N</sub><sup>k</sup></li>
+            <li>可约性：W<sub>N</sub><sup>2k</sup>=W<sub>N/2</sub><sup>k</sup></li>
+          </ul>
+          <div id="twProp" class="oknote"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="decompose" class="card section hidden">
+      <h2>3. 基2时间抽取：按时间序号奇偶分解</h2>
+      <div class="controlBar">
+        <label>N：</label>
+        <select id="decN" onchange="updateAll()">
+          <option>4</option><option selected>8</option><option>16</option>
+        </select>
+        <button class="primary" onclick="nextDecompose()">下一层分解</button>
+        <button onclick="resetDecompose()">重置</button>
+        <span id="decLevel" class="pill"></span>
+      </div>
+      <div class="svgBox"><svg id="decomposeSvg" width="1000" height="420"></svg></div>
+      <div class="note" style="margin-top:12px">
+        DIT 的“时间抽取”是指先在时域按序号奇偶拆分：x(0),x(2),x(4)... 进入偶序列；x(1),x(3),x(5)... 进入奇序列。
+      </div>
+    </div>
+
+    <div id="flow" class="card section hidden">
+      <h2>4. DIT-FFT 蝶形流图与数值演示</h2>
+      <div class="controlBar">
+        <label>N：</label>
+        <select id="fftN" onchange="setDefaultSeq();computeAndDraw()">
+          <option>4</option><option selected>8</option><option>16</option>
+        </select>
+        <button onclick="setDefaultSeq()">载入默认序列</button>
+        <button class="primary" onclick="computeAndDraw()">计算/刷新</button>
+        <button onclick="prevStep()">上一步</button>
+        <button class="green" onclick="togglePlay()" id="playBtn">播放</button>
+        <button onclick="nextStep()">下一步</button>
+      </div>
+      <label>输入实数序列，逗号分隔；长度不足会补 0，超出会截断：</label>
+      <textarea id="seqInput"></textarea>
+      <div class="grid2" style="margin-top:12px">
+        <div>
+          <div class="progress"><div id="flowProgress" class="bar"></div></div>
+          <p id="stepInfo" class="muted"></p>
+          <div class="svgBox"><svg id="flowSvg" width="1050" height="620"></svg></div>
+        </div>
+        <div>
+          <div class="mini">
+            <h3>当前蝶形公式</h3>
+            <div id="butterflyFormula" class="formula">点击“播放”或“下一步”。</div>
+            <p id="butterflyExplain" class="muted"></p>
+          </div>
+          <div class="mini" style="margin-top:12px">
+            <h3>FFT 结果校验</h3>
+            <div id="fftResult"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="complexity" class="card section hidden">
+      <h2>5. 直接 DFT 与 FFT 运算量对比</h2>
+      <div class="controlBar">
+        <label>N：</label>
+        <select id="cxN" onchange="drawComplexity()">
+          <option>8</option><option>16</option><option>32</option><option>64</option><option>128</option><option selected>512</option><option>1024</option><option>2048</option>
+        </select>
+        <label>复乘耗时 μs：</label>
+        <input id="mulTime" type="number" value="5" step="0.1" onchange="drawComplexity()" />
+        <label>复加耗时 μs：</label>
+        <input id="addTime" type="number" value="0.5" step="0.1" onchange="drawComplexity()" />
+      </div>
+      <div class="grid2">
+        <div class="mini">
+          <h3>运算量计算</h3>
+          <div id="cxTable"></div>
+        </div>
+        <div class="svgBox"><svg id="cxSvg" width="560" height="400"></svg></div>
+      </div>
+      <div class="note" style="margin-top:12px">
+        课堂例题可取 N=512，复乘 5 μs、复加 0.5 μs，观察直接 DFT 与 FFT 的时间差异。
+      </div>
+    </div>
+
+    <div id="quiz" class="card section hidden">
+      <h2>6. 课堂小测</h2>
+      <div id="quizBox" class="mini"></div>
+      <button class="primary" onclick="nextQuiz()">下一题</button>
+      <button onclick="resetQuiz()">重新开始</button>
+      <div id="quizScore" class="oknote" style="margin-top:12px"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+let currentSec='goal';
+let decomposeLevel=0;
+let flowData=null;
+let currentStep=0;
+let timer=null;
+let quizIndex=0;
+let quizScore=0;
+
+const defaultSeqs = {
+  4: "2, 3, 3, 2",
+  8: "1, -1, 1, -1, 2, 1, 1, 2",
+  16:"1, -1, 1, -1, 2, 1, 1, 2, 0, 1, 0, -1, 2, 0, -2, 1"
+};
+
+function $(id){return document.getElementById(id)}
+
+function showSec(id, btn){
+  document.querySelectorAll('.section').forEach(s=>s.classList.add('hidden'));
+  $(id).classList.remove('hidden');
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  currentSec=id;
+  setTimeout(()=>{ if(id==='twiddle')drawTwiddle(); if(id==='decompose')drawDecompose(); if(id==='flow')computeAndDraw(); if(id==='complexity')drawComplexity(); if(id==='quiz')renderQuiz(); },50);
+}
+
+function addMsg(text, role='bot'){
+  const div=document.createElement('div');
+  div.className='msg '+(role==='user'?'user':'bot');
+  div.innerHTML=text;
+  $('chat').appendChild(div);
+  $('chat').scrollTop=$('chat').scrollHeight;
+}
+function askQuick(q){$('chatInput').value=q; sendChat();}
+function sendChat(){
+  const q=$('chatInput').value.trim();
+  if(!q)return;
+  addMsg(q,'user');
+  $('chatInput').value='';
+  addMsg(agentAnswer(q),'bot');
+}
+function agentAnswer(q){
+  const s=q.toLowerCase();
+  if(q.includes('快')||q.includes('复杂度')||s.includes('complexity')){
+    return "直接 DFT 对每个 X(k) 都要对 N 个样本求和，共 N 个频点，所以约为 O(N²)。FFT 把 N 点 DFT 递归拆成两个 N/2 点 DFT，并复用旋转因子的周期性、对称性和可约性，复杂度降为 O(Nlog₂N)。\n\n建议操作：打开“复杂度对比”，把 N 从 8 调到 1024。";
+  }
+  if(q.includes('DIT')||q.includes('时间抽取')||q.includes('奇偶')){
+    return "DIT-FFT 是 Decimation in Time，即“按时间抽取”。核心是把 x(n) 按 n 的奇偶拆成偶序列和奇序列：\n\n偶序列：x(0), x(2), x(4), ...\n奇序列：x(1), x(3), x(5), ...\n\n然后用两个 N/2 点 DFT 合成 N 点 DFT。建议打开“奇偶分解”和“蝶形流图”逐步播放。";
+  }
+  if(q.includes('蝶形')||q.includes('butterfly')){
+    return "蝶形运算是 FFT 的基本计算单元。若上支路输入为 a，下支路输入为 b，旋转因子为 W，则输出为：\n\n上输出：a + Wb\n下输出：a - Wb\n\n一次蝶形通常包含 1 次复乘和 2 次复加。";
+  }
+  if(q.includes('旋转')||q.includes('w')||q.includes('因子')){
+    return "旋转因子 W_N^k = e^{-j2πk/N}。它位于单位圆上。FFT 能加速，关键在于三类性质：\n\n1. 周期性：W_N^{k+N}=W_N^k\n2. 对称性：W_N^{k+N/2}=-W_N^k\n3. 可约性：W_N^{2k}=W_{N/2}^k\n\n建议打开“旋转因子”，拖动 k 观察单位圆。";
+  }
+  if(q.includes('测试')||q.includes('小测')){
+    return "进入“课堂小测”模块，按题目选择答案。建议先完成旋转因子和蝶形流图，再测试。";
+  }
+  if(q.includes('n=8')||q.includes('8')){
+    return "N=8 时，DIT-FFT 需要 log₂8=3 级。每级有 N/2=4 个蝶形，所以总蝶形数为 12。第一层按奇偶分为两个 4 点序列，继续分解为 2 点，最后合并输出。";
+  }
+  return "可以围绕这些问题提问：为什么 FFT 快、DIT 如何分解、蝶形公式是什么、旋转因子有什么性质、N=8 流图如何计算。也可以直接点击右侧模块进行交互。";
+}
+
+function c(re, im=0){return {re, im};}
+function cadd(a,b){return c(a.re+b.re,a.im+b.im)}
+function csub(a,b){return c(a.re-b.re,a.im-b.im)}
+function cmul(a,b){return c(a.re*b.re-a.im*b.im,a.re*b.im+a.im*b.re)}
+function wnk(N,k){let th=-2*Math.PI*k/N;return c(Math.cos(th),Math.sin(th))}
+function fmt(z){
+  const r=Math.abs(z.re)<1e-9?0:z.re;
+  const im=Math.abs(z.im)<1e-9?0:z.im;
+  const rr=(Math.round(r*1000)/1000);
+  const ii=(Math.round(im*1000)/1000);
+  if(ii===0)return String(rr);
+  if(rr===0)return ii+"j";
+  return rr+(ii>=0?"+":"")+ii+"j";
+}
+function parseSeq(){
+  const N=parseInt($('fftN').value);
+  let parts=$('seqInput').value.split(/[,，\s]+/).filter(Boolean).map(Number).filter(v=>!isNaN(v));
+  while(parts.length<N)parts.push(0);
+  parts=parts.slice(0,N);
+  return parts.map(v=>c(v,0));
+}
+function bitReverse(i,bits){
+  let r=0;
+  for(let b=0;b<bits;b++){r=(r<<1)|(i&1);i>>=1;}
+  return r;
+}
+function bitReverseOrder(arr){
+  const N=arr.length,bits=Math.log2(N);
+  let out=new Array(N);
+  for(let i=0;i<N;i++)out[bitReverse(i,bits)]=arr[i];
+  return out;
+}
+function computeFFTStages(arr){
+  const N=arr.length;
+  let stages=[bitReverseOrder(arr).map(z=>c(z.re,z.im))];
+  let ops=[];
+  let a=stages[0].map(z=>c(z.re,z.im));
+  for(let len=2;len<=N;len*=2){
+    const half=len/2;
+    let before=a.map(z=>c(z.re,z.im));
+    for(let start=0;start<N;start+=len){
+      for(let j=0;j<half;j++){
+        let i=start+j, p=i+half;
+        let W=wnk(len,j);
+        let t=cmul(W,a[p]);
+        let u=a[i];
+        let upper=cadd(u,t), lower=csub(u,t);
+        ops.push({stage:Math.log2(len), len, i, p, j, W, u, v:a[p], upper, lower, before:before.map(z=>c(z.re,z.im))});
+        a[i]=upper; a[p]=lower;
+      }
+    }
+    stages.push(a.map(z=>c(z.re,z.im)));
+  }
+  return {stages, ops, output:a};
+}
+
+function setDefaultSeq(){
+  const N=parseInt($('fftN').value);
+  $('seqInput').value=defaultSeqs[N]||defaultSeqs[8];
+}
+
+function computeAndDraw(){
+  if(!$('seqInput').value.trim())setDefaultSeq();
+  flowData=computeFFTStages(parseSeq());
+  currentStep=Math.min(currentStep, flowData.ops.length);
+  drawFlow();
+  drawResults();
+}
+
+function nextStep(){ if(!flowData)computeAndDraw(); currentStep=Math.min(flowData.ops.length,currentStep+1); drawFlow();}
+function prevStep(){ if(!flowData)computeAndDraw(); currentStep=Math.max(0,currentStep-1); drawFlow();}
+function togglePlay(){
+  if(timer){clearInterval(timer);timer=null;$('playBtn').innerText='播放';return;}
+  $('playBtn').innerText='暂停';
+  timer=setInterval(()=>{
+    if(!flowData)computeAndDraw();
+    if(currentStep>=flowData.ops.length){clearInterval(timer);timer=null;$('playBtn').innerText='播放';return;}
+    nextStep();
+  },900);
+}
+
+function drawFlow(){
+  if(!flowData)return;
+  const svg=$('flowSvg'); svg.innerHTML='';
+  const N=flowData.stages[0].length;
+  const stages=flowData.stages.length;
+  const w=1050,h=Math.max(620,N*42+80);
+  svg.setAttribute('height',h);
+  const marginX=80, marginY=50;
+  const dx=(w-2*marginX)/(stages-1);
+  const dy=(h-2*marginY)/(N-1);
+  const doneOps=currentStep;
+  const op=flowData.ops[Math.max(0,Math.min(doneOps-1,flowData.ops.length-1))];
+
+  function line(x1,y1,x2,y2,color,width=1.5,dash=''){
+    const e=document.createElementNS('http://www.w3.org/2000/svg','line');
+    e.setAttribute('x1',x1);e.setAttribute('y1',y1);e.setAttribute('x2',x2);e.setAttribute('y2',y2);
+    e.setAttribute('stroke',color);e.setAttribute('stroke-width',width);
+    if(dash)e.setAttribute('stroke-dasharray',dash);
+    svg.appendChild(e);
+  }
+  function text(x,y,t,size=12,color='#172033',anchor='middle'){
+    const e=document.createElementNS('http://www.w3.org/2000/svg','text');
+    e.setAttribute('x',x);e.setAttribute('y',y);e.setAttribute('font-size',size);
+    e.setAttribute('fill',color);e.setAttribute('text-anchor',anchor);
+    e.textContent=t;svg.appendChild(e);
+  }
+  function circle(x,y,r,fill,stroke='#315efb'){
+    const e=document.createElementNS('http://www.w3.org/2000/svg','circle');
+    e.setAttribute('cx',x);e.setAttribute('cy',y);e.setAttribute('r',r);
+    e.setAttribute('fill',fill);e.setAttribute('stroke',stroke);e.setAttribute('stroke-width','1.5');
+    svg.appendChild(e);
+  }
+
+  // stage labels
+  for(let s=0;s<stages;s++){
+    const x=marginX+s*dx;
+    text(x,25,s===0?'位倒序输入':'第 '+s+' 级',14,'#315efb');
+  }
+
+  // conceptual butterfly edges per stage
+  for(let st=1;st<stages;st++){
+    const len=2**st, half=len/2;
+    const x1=marginX+(st-1)*dx, x2=marginX+st*dx;
+    for(let start=0;start<N;start+=len){
+      for(let j=0;j<half;j++){
+        const i=start+j,p=i+half;
+        const y1=marginY+i*dy, y2=marginY+p*dy;
+        const hi = op && op.stage===st && op.i===i && op.p===p;
+        line(x1,y1,x2,y1,hi?'#0f9f7a':'#cfd6e6',hi?3:1.2);
+        line(x1,y2,x2,y1,hi?'#0f9f7a':'#dfe4ef',hi?3:1.2);
+        line(x1,y1,x2,y2,hi?'#c77c00':'#e3e7f0',hi?2.5:1.2,'4 3');
+        line(x1,y2,x2,y2,hi?'#c77c00':'#cfd6e6',hi?2.5:1.2);
+        if(hi) text((x1+x2)/2, (y1+y2)/2-6, 'W='+fmt(op.W), 12, '#0f6f58');
+      }
+    }
+  }
+
+  // nodes and values
+  for(let s=0;s<stages;s++){
+    const x=marginX+s*dx;
+    for(let i=0;i<N;i++){
+      const y=marginY+i*dy;
+      let fill='#fff';
+      let stroke='#315efb';
+      if(op && s===op.stage && (i===op.i||i===op.p)){fill='#ecfdf6';stroke='#0f9f7a';}
+      if(s===0){fill='#f8fafc';stroke='#687386';}
+      circle(x,y,14,fill,stroke);
+      text(x,y+4,String(i),11,stroke);
+      text(x+22,y+4,fmt(flowData.stages[s][i]),12,'#172033','start');
+    }
+  }
+
+  const pct=flowData.ops.length===0?0:Math.round(100*currentStep/flowData.ops.length);
+  $('flowProgress').style.width=pct+'%';
+  $('stepInfo').innerText=`已完成 ${currentStep}/${flowData.ops.length} 个蝶形，进度 ${pct}%`;
+
+  if(currentStep===0){
+    $('butterflyFormula').innerHTML='初始状态：先将输入序列调整为位倒序。';
+    $('butterflyExplain').innerText='随后每一级进行 N/2 个蝶形运算。';
+  }else{
+    $('butterflyFormula').innerHTML=
+      `u=${fmt(op.u)}, v=${fmt(op.v)}, W=${fmt(op.W)}<br>`+
+      `上输出 = u + Wv = ${fmt(op.upper)}<br>`+
+      `下输出 = u - Wv = ${fmt(op.lower)}`;
+    $('butterflyExplain').innerText=`当前为第 ${op.stage} 级，蝶形连接索引 ${op.i} 与 ${op.p}。`;
+  }
+}
+
+function drawResults(){
+  if(!flowData)return;
+  const rows=flowData.output.map((z,i)=>`<tr><td>X[${i}]</td><td>${fmt(z)}</td></tr>`).join('');
+  $('fftResult').innerHTML=`<table><tr><th>频点</th><th>FFT输出</th></tr>${rows}</table>`;
+}
+
+function drawTwiddle(){
+  const N=parseInt($('twN').value);
+  const range=$('twK');
+  range.max=N-1;
+  let k=Math.min(parseInt(range.value),N-1); range.value=k;
+  const svg=$('twiddleSvg'); svg.innerHTML='';
+  const cx=260,cy=210,R=145;
+  function elem(type,attrs){
+    const e=document.createElementNS('http://www.w3.org/2000/svg',type);
+    for(let a in attrs)e.setAttribute(a,attrs[a]);
+    svg.appendChild(e); return e;
+  }
+  elem('circle',{cx,cy,r:R,fill:'#fff',stroke:'#d9deea','stroke-width':2});
+  elem('line',{x1:cx-R-20,y1:cy,x2:cx+R+20,y2:cy,stroke:'#cfd6e6'});
+  elem('line',{x1:cx,y1:cy-R-20,x2:cx,y2:cy+R+20,stroke:'#cfd6e6'});
+  for(let i=0;i<N;i++){
+    const th=-2*Math.PI*i/N;
+    const x=cx+R*Math.cos(th), y=cy+R*Math.sin(th);
+    elem('circle',{cx:x,cy:y,r:i===k?7:4,fill:i===k?'#315efb':'#687386'});
+    if(N<=16||i%2===0){
+      const t=elem('text',{x:cx+(R+25)*Math.cos(th),y:cy+(R+25)*Math.sin(th)+4,'font-size':12,fill:'#687386','text-anchor':'middle'});
+      t.textContent=i;
+    }
+  }
+  const th=-2*Math.PI*k/N;
+  const x=cx+R*Math.cos(th), y=cy+R*Math.sin(th);
+  elem('line',{x1:cx,y1:cy,x2:x,y2:y,stroke:'#315efb','stroke-width':3});
+  const z=wnk(N,k);
+  $('twInfo').innerText=`W${N}^${k} = ${fmt(z)}`;
+  $('twProp').innerHTML=`当前点：k=${k}。<br>周期性示例：W<sub>${N}</sub><sup>${k+N}</sup>=W<sub>${N}</sub><sup>${k}</sup>。<br>对称性示例：W<sub>${N}</sub><sup>${(k+N/2)%N}</sup>=-W<sub>${N}</sub><sup>${k}</sup>。`;
+}
+
+function drawDecompose(){
+  const N=parseInt($('decN').value);
+  const svg=$('decomposeSvg'); svg.innerHTML='';
+  const w=1000,h=420;
+  const maxLevel=Math.log2(N);
+  decomposeLevel=Math.min(decomposeLevel,maxLevel);
+  $('decLevel').innerText=`当前分解层数：${decomposeLevel}/${maxLevel}`;
+  function elem(type,attrs){
+    const e=document.createElementNS('http://www.w3.org/2000/svg',type);
+    for(let a in attrs)e.setAttribute(a,attrs[a]);
+    svg.appendChild(e); return e;
+  }
+  function text(x,y,t,size=13,color='#172033'){
+    const e=elem('text',{x,y,'font-size':size,fill:color,'text-anchor':'middle'});
+    e.textContent=t; return e;
+  }
+  function rect(x,y,w,h,fill,stroke='#315efb'){
+    elem('rect',{x,y,width:w,height:h,rx:14,fill,stroke,'stroke-width':1.5});
+  }
+  let groups=[Array.from({length:N},(_,i)=>i)];
+  for(let lv=0;lv<decomposeLevel;lv++){
+    let ng=[];
+    groups.forEach(g=>{
+      ng.push(g.filter((_,idx)=>idx%2===0));
+      ng.push(g.filter((_,idx)=>idx%2===1));
+    });
+    groups=ng;
+  }
+  const cols=decomposeLevel+1;
+  let allLevels=[];
+  let g0=[Array.from({length:N},(_,i)=>i)];
+  allLevels.push(g0);
+  for(let lv=1;lv<=decomposeLevel;lv++){
+    let prev=allLevels[lv-1], next=[];
+    prev.forEach(g=>{next.push(g.filter((_,idx)=>idx%2===0));next.push(g.filter((_,idx)=>idx%2===1));});
+    allLevels.push(next);
+  }
+  for(let lv=0;lv<allLevels.length;lv++){
+    const x=80+lv*(820/Math.max(1,decomposeLevel));
+    text(x,30,lv===0?'原序列':`第 ${lv} 层`,14,'#315efb');
+    const gs=allLevels[lv];
+    const gap=350/gs.length;
+    gs.forEach((g,idx)=>{
+      const y=55+idx*gap;
+      rect(x-60,y,120,Math.max(34,g.length*18+16),'#fff');
+      text(x,y+20,'{'+g.join(', ')+'}',12);
+      if(lv>0){
+        const parent=Math.floor(idx/2);
+        const px=80+(lv-1)*(820/Math.max(1,decomposeLevel));
+        const py=55+parent*(350/allLevels[lv-1].length)+20;
+        elem('line',{x1:px+60,y1:py,x2:x-60,y2:y+20,stroke:'#cfd6e6','stroke-width':1.5});
+      }
+    });
+  }
+}
+function nextDecompose(){decomposeLevel++;drawDecompose();}
+function resetDecompose(){decomposeLevel=0;drawDecompose();}
+function updateAll(){decomposeLevel=0;drawDecompose();}
+
+function drawComplexity(){
+  const N=parseInt($('cxN').value);
+  const mt=parseFloat($('mulTime').value)||0;
+  const at=parseFloat($('addTime').value)||0;
+  const dftMul=N*N, dftAdd=N*(N-1);
+  const fftMul=(N/2)*Math.log2(N), fftAdd=N*Math.log2(N);
+  const dftT=(dftMul*mt+dftAdd*at)/1e6;
+  const fftT=(fftMul*mt+fftAdd*at)/1e6;
+  const speed=dftT/fftT;
+  $('cxTable').innerHTML=`<table>
+    <tr><th>方法</th><th>复乘次数</th><th>复加次数</th><th>估计时间/s</th></tr>
+    <tr><td>直接 DFT</td><td>${Math.round(dftMul)}</td><td>${Math.round(dftAdd)}</td><td>${dftT.toFixed(6)}</td></tr>
+    <tr><td>基2 FFT</td><td>${Math.round(fftMul)}</td><td>${Math.round(fftAdd)}</td><td>${fftT.toFixed(6)}</td></tr>
+    <tr><td>加速倍数</td><td colspan="3">${speed.toFixed(2)} ×</td></tr>
+  </table>`;
+  const svg=$('cxSvg'); svg.innerHTML='';
+  function elem(type,attrs){const e=document.createElementNS('http://www.w3.org/2000/svg',type);for(let a in attrs)e.setAttribute(a,attrs[a]);svg.appendChild(e);return e;}
+  function text(x,y,t,size=12,color='#172033',anchor='middle'){const e=elem('text',{x,y,'font-size':size,fill:color,'text-anchor':anchor});e.textContent=t;}
+  const data=[
+    {name:'DFT复乘',v:dftMul},
+    {name:'FFT复乘',v:fftMul},
+    {name:'DFT复加',v:dftAdd},
+    {name:'FFT复加',v:fftAdd},
+  ];
+  const max=Math.max(...data.map(d=>d.v));
+  const x0=70,y0=330,barW=70,gap=45,scale=240/max;
+  elem('line',{x1:50,y1:y0,x2:520,y2:y0,stroke:'#cfd6e6'});
+  data.forEach((d,i)=>{
+    const x=x0+i*(barW+gap), bh=d.v*scale;
+    elem('rect',{x,y:y0-bh,width:barW,height:bh,rx:8,fill:i%2===0?'#dfe6ff':'#d5f6eb',stroke:i%2===0?'#315efb':'#0f9f7a'});
+    text(x+barW/2,y0-bh-8,Math.round(d.v),12);
+    text(x+barW/2,y0+22,d.name,12);
+  });
+  text(280,28,`N=${N} 时 DFT 与 FFT 运算量对比`,15,'#315efb');
+}
+
+const quizzes=[
+  {q:'1. 直接计算 N 点 DFT 的复乘次数通常近似为多少？',opts:['N','Nlog₂N','N²','log₂N'],ans:2,exp:'直接 DFT 需要对 N 个频点分别求和，每个频点包含 N 项乘法，因此约为 N²。'},
+  {q:'2. 基2 DIT-FFT 的“DIT”指什么？',opts:['按频率抽取','按时间抽取','按幅度抽取','按相位抽取'],ans:1,exp:'DIT 是 Decimation in Time，即按时间序号奇偶分解。'},
+  {q:'3. 一个 N 点基2 FFT 有多少级？',opts:['N级','N/2级','log₂N级','N²级'],ans:2,exp:'每次长度减半，因此需要 log₂N 级。'},
+  {q:'4. 蝶形运算的两个输出是？',opts:['a+b 和 a-b','a+Wb 和 a-Wb','Wa+b 和 Wa-b','ab 和 a/b'],ans:1,exp:'旋转因子通常乘在下支路输入上，输出为 a+Wb 与 a-Wb。'},
+  {q:'5. W_N^{k+N/2}=-W_N^k 属于旋转因子的什么性质？',opts:['周期性','对称性','线性性','随机性'],ans:1,exp:'相差半圈，方向相反，因此是对称性。'}
+];
+function renderQuiz(){
+  const item=quizzes[quizIndex];
+  if(!item)return;
+  let html=`<h3>${item.q}</h3>`;
+  item.opts.forEach((o,i)=>{
+    html+=`<button class="quizOption" onclick="answerQuiz(${i})">${String.fromCharCode(65+i)}. ${o}</button>`;
+  });
+  html+=`<p id="quizFeedback" class="muted"></p>`;
+  $('quizBox').innerHTML=html;
+  $('quizScore').innerText=`得分：${quizScore}/${quizzes.length}，当前第 ${quizIndex+1} 题。`;
+}
+function answerQuiz(i){
+  const item=quizzes[quizIndex];
+  document.querySelectorAll('.quizOption').forEach((b,idx)=>{
+    if(idx===item.ans)b.classList.add('right');
+    if(idx===i && i!==item.ans)b.classList.add('wrong');
+    b.disabled=true;
+  });
+  if(i===item.ans)quizScore++;
+  $('quizFeedback').innerText=(i===item.ans?'回答正确。':'回答错误。')+item.exp;
+  $('quizScore').innerText=`得分：${quizScore}/${quizzes.length}。`;
+}
+function nextQuiz(){
+  quizIndex=(quizIndex+1)%quizzes.length;
+  renderQuiz();
+}
+function resetQuiz(){
+  quizIndex=0;quizScore=0;renderQuiz();
+}
+
+addMsg("任务入口已就绪。建议先点击“为什么FFT快”，再依次进入右侧各模块。");
+setDefaultSeq();
+drawTwiddle();
+drawDecompose();
+computeAndDraw();
+drawComplexity();
+renderQuiz();
+</script>
+</body>
+</html>
